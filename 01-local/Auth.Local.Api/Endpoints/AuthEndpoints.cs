@@ -17,9 +17,12 @@ public static class AuthEndpoints
         var group = app.MapGroup("/api/auth");
 
         group.MapPost("/register", Register);
-        // Solo el login tiene límite de intentos (ver AddRateLimiter en Program.cs).
+        // El login tiene límite de intentos (ver AddRateLimiter en Program.cs).
         group.MapPost("/login", Login)
             .RequireRateLimiting(RateLimitPolicies.Login);
+
+        group.MapPost("/refresh", Refresh);
+        group.MapPost("/logout", Logout);
 
         return app;
     }
@@ -62,7 +65,8 @@ public static class AuthEndpoints
         LoginRequest request,
         AppDbContext db,
         IPasswordHasher<User> hasher,
-        TokenService tokens)
+        TokenService tokens,
+        RefreshTokenService refreshTokens)
     {
         var email = NormalizeEmail(request.Email);
         var user = email is null ? null : await db.Users.SingleOrDefaultAsync(u => u.Email == email);
@@ -92,7 +96,27 @@ public static class AuthEndpoints
         if (user.TwoFactorEnabled)
             return Results.Ok(new { requires2fa = true, tempToken = tokens.CreateTwoFactorToken(user) });
 
-        return Results.Ok(new { accessToken = tokens.CreateAccessToken(user) });
+        var pair = await refreshTokens.IssueAsync(user);
+        return Results.Ok(new { accessToken = pair.AccessToken, refreshToken = pair.RefreshToken });
+    }
+
+    // POST /api/auth/refresh
+    private static async Task<IResult> Refresh(RefreshRequest request, RefreshTokenService refreshTokens)
+    {
+        var pair = await refreshTokens.RotateAsync(request.RefreshToken);
+        return pair is null
+            ? Results.Json(
+                new { message = "Refresh token inválido, vencido o reutilizado." },
+                statusCode: StatusCodes.Status401Unauthorized)
+            : Results.Ok(new { accessToken = pair.AccessToken, refreshToken = pair.RefreshToken });
+    }
+
+    // POST /api/auth/logout
+    // Siempre 204, exista o no el token: no filtramos información.
+    private static async Task<IResult> Logout(RefreshRequest request, RefreshTokenService refreshTokens)
+    {
+        await refreshTokens.RevokeAsync(request.RefreshToken);
+        return Results.NoContent();
     }
 
     // Mensaje GENÉRICO: no decimos si falló el correo o la contraseña,

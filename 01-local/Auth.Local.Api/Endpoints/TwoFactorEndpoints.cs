@@ -66,8 +66,12 @@ public static class TwoFactorEndpoints
         return Results.Ok(new { twoFactorEnabled = true });
     }
 
-    // POST /api/auth/2fa/verify  -> segundo paso del login: tempToken + código = accessToken
-    private static async Task<IResult> Verify(TwoFactorVerifyRequest request, AppDbContext db, TokenService tokens)
+    // POST /api/auth/2fa/verify  -> segundo paso del login: tempToken + código = accessToken + refreshToken
+    private static async Task<IResult> Verify(
+        TwoFactorVerifyRequest request,
+        AppDbContext db,
+        TokenService tokens,
+        RefreshTokenService refreshTokens)
     {
         var userId = await tokens.ValidateTwoFactorTokenAsync(request.TempToken);
         var user = userId is null ? null : await db.Users.FindAsync(userId.Value);
@@ -81,7 +85,8 @@ public static class TwoFactorEndpoints
         }
 
         // Ahora sí: ambos factores verificados (algo que sabes + algo que tienes).
-        return Results.Ok(new { accessToken = tokens.CreateAccessToken(user) });
+        var pair = await refreshTokens.IssueAsync(user);
+        return Results.Ok(new { accessToken = pair.AccessToken, refreshToken = pair.RefreshToken });
     }
 
     private static int GetUserId(ClaimsPrincipal principal) =>

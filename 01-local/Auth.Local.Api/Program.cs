@@ -30,6 +30,8 @@ builder.Services.AddOptions<JwtOptions>()
     .ValidateOnStart();
 
 builder.Services.AddSingleton<TokenService>();
+// Refresh tokens: scoped porque usa AppDbContext (TokenService es singleton y no puede).
+builder.Services.AddScoped<RefreshTokenService>();
 
 // Autenticación con JWT Bearer: lee "Authorization: Bearer <token>" y valida
 // issuer, audience, expiración y firma. La configuración está en JwtBearerSetup.

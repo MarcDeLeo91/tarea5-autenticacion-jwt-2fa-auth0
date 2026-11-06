@@ -12,3 +12,7 @@ public record LoginRequest(string Email, string Password);
 public record TwoFactorCodeRequest(string Code);
 
 public record TwoFactorVerifyRequest(string TempToken, string Code);
+
+// --- Refresh tokens ---
+
+public record RefreshRequest(string RefreshToken);

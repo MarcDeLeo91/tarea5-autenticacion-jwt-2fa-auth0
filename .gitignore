@@ -1,0 +1,25 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Node
+node_modules/
+dist/
+
+# Secretos y entorno
+.env
+.env.local
+appsettings.Development.json
+secrets.json
+
+# Bases de datos locales
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Sistema
+.DS_Store
+Thumbs.db
